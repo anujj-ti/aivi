@@ -39,9 +39,40 @@ export default function ResumeUploadPage() {
     if (resumeText.trim()) {
       setIsLoading(true);
       try {
-        // Here we'll implement the actual text processing logic
-        // For now, simulate a delay
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        // Store resume in localStorage
+        localStorage.setItem('userResume', resumeText.trim());
+
+        // Make API call to get initial questions
+        const response = await fetch('http://localhost:8000/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            resume: resumeText.trim(),
+            messages: [
+              {
+                role: "user",
+                content: "Hello, I am here for the interview."
+              }
+            ]
+          })
+        });
+
+        const data = await response.json();
+        
+        // Store the conversation in localStorage
+        localStorage.setItem('interviewConversation', JSON.stringify([
+          {
+            role: "user",
+            content: "Hello, I am here for the interview."
+          },
+          {
+            role: "assistant",
+            content: data.content
+          }
+        ]));
+
         router.push('/interview/start');
       } catch (error) {
         console.error('Processing failed:', error);

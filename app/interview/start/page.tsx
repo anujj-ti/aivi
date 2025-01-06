@@ -3,12 +3,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Mic, MicOff, Camera, CameraOff, MessageCircle } from 'lucide-react';
 
-const questions = [
-  "Tell me about your background and experience.",
-  "What are your key strengths?",
-  "Why are you interested in this position?",
-  "Describe a challenging project you've worked on."
-];
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+}
 
 interface SpeechRecognitionEvent extends Event {
   resultIndex: number;
@@ -56,29 +54,33 @@ interface Response {
 
 export default function InterviewPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const questionIndexRef = useRef(0);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
-  const [currentQuestion, setCurrentQuestion] = useState(questions[0]);
+  const [currentQuestion, setCurrentQuestion] = useState('');
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [responses, setResponses] = useState<Response[]>([]);
   const [currentResponse, setCurrentResponse] = useState('');
+  const [conversation, setConversation] = useState<Message[]>([]);
 
   useEffect(() => {
-    // Load previous responses from localStorage
-    const savedResponses = localStorage.getItem('interviewResponses');
-    if (savedResponses) {
-      setResponses(JSON.parse(savedResponses));
+    // Load conversation from localStorage
+    const savedConversation = localStorage.getItem('interviewConversation');
+    console.log("savedConversation", savedConversation);
+    if (savedConversation) {
+      const parsedConversation = JSON.parse(savedConversation);
+      setConversation(parsedConversation);
+      // Set the current question from the last assistant message
+      const lastAssistantMessage = parsedConversation
+        .filter((msg: Message) => msg.role === 'assistant')
+        .pop();
+      if (lastAssistantMessage) {
+        setCurrentQuestion(lastAssistantMessage.content);
+      }
     }
   }, []);
 
-  useEffect(() => {
-    // Save responses to localStorage whenever they change
-    localStorage.setItem('interviewResponses', JSON.stringify(responses));
-  }, [responses]);
-
-  const saveResponse = (text: string, isInterim = false) => {
+  const saveResponse = async (text: string, isInterim = false) => {
     if (text.trim()) {
       const newResponse: Response = {
         id: Date.now().toString(),
@@ -87,8 +89,56 @@ export default function InterviewPage() {
         timestamp: Date.now(),
         isInterim
       };
+
+      if (!isInterim) {
+        // Get the resume from localStorage
+        const resume = localStorage.getItem('userResume') || '';
+        
+        // Update conversation with user's response
+        const updatedConversation: Message[] = [
+          ...conversation,
+          { role: 'user' as const, content: text }
+        ];
+
+        try {
+          // Make API call to get next question
+          const response = await fetch('http://localhost:8000/chat', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              resume,
+              messages: updatedConversation
+            })
+          });
+
+          console.log(response);
+
+          const data = await response.json();
+          
+          // Add assistant's response to conversation
+          const newConversation: Message[] = [
+            ...updatedConversation,
+            {
+              role: 'assistant' as const,
+              content: data.content
+            }
+          ];
+
+          // Update state and localStorage
+          setConversation(newConversation);
+          console.log(newConversation);
+          localStorage.setItem('interviewConversation', JSON.stringify(newConversation));
+          
+          // Set the new question
+          setCurrentQuestion(data.content);
+        } catch (error) {
+          console.error('Failed to get next question:', error);
+        }
+      }
+
       setResponses(prev => {
-        // Remove previous interim message if it exists
         const filtered = prev.filter(r => !r.isInterim);
         return [...filtered, newResponse];
       });
@@ -130,7 +180,7 @@ export default function InterviewPage() {
       };
 
       recognitionRef.current.onerror = (event: SpeechRecognitionErrorEvent) => {
-        console.error('Speech recognition error:', event.error, event.message);
+        console.log('Speech recognition error:', event.error, event.message);
         setIsSpeaking(false);
 
         // Automatically restart recognition for no-speech errors
@@ -147,16 +197,6 @@ export default function InterviewPage() {
       recognitionRef.current.start();
     }
   };
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      questionIndexRef.current = (questionIndexRef.current + 1) % questions.length;
-      setCurrentQuestion(questions[questionIndexRef.current]);
-      setCurrentResponse(''); // Clear current response for new question
-    }, 60000);
-
-    return () => clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     startVideo();
