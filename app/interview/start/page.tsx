@@ -23,12 +23,17 @@ interface SpeechRecognitionEvent extends Event {
   };
 }
 
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+  message: string;
+}
+
 interface SpeechRecognition extends EventTarget {
   continuous: boolean;
   interimResults: boolean;
   lang: string;
   onresult: (event: SpeechRecognitionEvent) => void;
-  onerror: (event: Error) => void;
+  onerror: (event: SpeechRecognitionErrorEvent) => void;
   start: () => void;
   stop: () => void;
 }
@@ -83,8 +88,8 @@ export default function InterviewPage() {
         setTranscript(finalTranscript + interimTranscript);
       };
 
-      recognitionRef.current.onerror = (error: Error) => {
-        console.error('Speech recognition error:', error);
+      recognitionRef.current.onerror = (event: SpeechRecognitionErrorEvent) => {
+        console.error('Speech recognition error:', event.error, event.message);
       };
 
       recognitionRef.current.start();
