@@ -46,6 +46,7 @@ declare global {
 
 export default function InterviewPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [currentResponse, setCurrentResponse] = useState('');
@@ -168,6 +169,13 @@ export default function InterviewPage() {
     }
   };
 
+  useEffect(() => {
+    // Scroll to bottom whenever conversation updates
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [conversation]);
+
   return (
     <main className="flex min-h-screen bg-gray-100">
       {/* Video Call Section */}
@@ -180,7 +188,7 @@ export default function InterviewPage() {
               autoPlay
               playsInline
               muted
-              className="inset-0 w-full h-full object-cover"
+              className="absolute inset-0 w-full h-full object-cover"
             />
             
             {/* Controls Overlay */}
@@ -203,9 +211,10 @@ export default function InterviewPage() {
       </div>
 
       {/* Interview Panel */}
-      <div className="w-96 bg-white border-l border-gray-200 p-6 flex flex-col h-screen">
+      <div className="w-[500px] bg-white border-l border-gray-200 p-6 flex flex-col h-screen overflow-hidden">
         {/* Chat Messages */}
-        <div className="flex-1 bg-gray-50 rounded-lg p-4 mb-6 overflow-y-auto min-h-0">
+        <h2 className="text-xl font-semibold text-gray-800 mb-4">Conversation</h2>
+        <div ref={chatContainerRef} className="flex-1 bg-gray-50 rounded-lg p-4 mb-6 overflow-y-auto min-h-0">
           <div className="flex flex-col">
             {conversation.map((message, index) => (
               <div 
