@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, Camera, CameraOff, MessageCircle } from 'lucide-react';
+import { Mic, MicOff, Camera, CameraOff } from 'lucide-react';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -46,10 +46,8 @@ declare global {
 
 export default function InterviewPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
   const [currentResponse, setCurrentResponse] = useState('');
   const [conversation, setConversation] = useState<Message[]>([]);
 
@@ -67,126 +65,71 @@ export default function InterviewPage() {
     }
   }, []);
 
-  const saveResponse = async (text: string, isInterim = false) => {
-    if (text.trim() && !isInterim) {
-      // Get the resume from localStorage
-      const resume = localStorage.getItem('userResume') || '';
-
-      console.log("conversation in saveResponse", conversation);
-
-      const currentConversation = JSON.parse(localStorage.getItem('interviewConversation') || '[]');
-
-      // Update conversation with user's response
-      const updatedConversation: Message[] = [
-        ...currentConversation,
-        { role: 'user' as const, content: text }
-      ];
-
-      console.log("updatedConversation", updatedConversation);
-      setConversation(updatedConversation);
-      localStorage.setItem('interviewConversation', JSON.stringify(updatedConversation));
-
-      setIsMuted(true);
-
-      try {
-        // Make API call to get next question
-        const response = await fetch('http://localhost:8000/chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            resume,
-            messages: updatedConversation
-          })
-        });
-
-        const data = await response.json();
-        
-        // Add assistant's response to conversation
-        const currentConversation = JSON.parse(localStorage.getItem('interviewConversation') || '[]');
-        const newConversation: Message[] = [
-          ...currentConversation,
-          {
-            role: 'assistant' as const,
-            content: data.content
-          }
-        ];
-
-        // Update state and localStorage
-        setConversation(newConversation);
-        localStorage.setItem('interviewConversation', JSON.stringify(newConversation));
-        console.log("newConversation", newConversation);
-      } catch (error) {
-        console.error('Failed to get next question:', error);
-      }
-
-      setIsMuted(false);
-
-    } else if (isInterim) {
-      setCurrentResponse(text);
+  const handleSubmitResponse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (currentResponse.trim()) {
+      const currentResponeReceived = currentResponse;
+      setCurrentResponse('');
+      await saveResponse(currentResponeReceived);
     }
   };
 
-  const startSpeechRecognition = () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = true;
-      recognitionRef.current.interimResults = true;
-      recognitionRef.current.lang = 'en-US';
+  const saveResponse = async (text: string) => {
+    // Get the resume from localStorage
+    const resume = localStorage.getItem('userResume') || '';
 
-      recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
-        let interimTranscript = '';
-        setIsSpeaking(true);
+    const currentConversation = JSON.parse(localStorage.getItem('interviewConversation') || '[]');
 
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
-            setIsSpeaking(false);
-            // Save as final response
-            saveResponse(transcript);
-            setCurrentResponse('');
-          } else {
-            interimTranscript += transcript;
-            setIsSpeaking(true);
-            // Update current response
-            setCurrentResponse(interimTranscript);
-            // Save as interim response
-            saveResponse(interimTranscript, true);
-          }
+    // Update conversation with user's response
+    const updatedConversation: Message[] = [
+      ...currentConversation,
+      { role: 'user' as const, content: text }
+    ];
+
+    console.log("updatedConversation", updatedConversation);
+    setConversation(updatedConversation);
+    localStorage.setItem('interviewConversation', JSON.stringify(updatedConversation));
+
+    try {
+      // Make API call to get next question
+      const response = await fetch('http://localhost:8000/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          resume,
+          messages: updatedConversation
+        })
+      });
+
+      const data = await response.json();
+      
+      // Add assistant's response to conversation
+      const currentConversation = JSON.parse(localStorage.getItem('interviewConversation') || '[]');
+      const newConversation: Message[] = [
+        ...currentConversation,
+        {
+          role: 'assistant' as const,
+          content: data.content
         }
-      };
+      ];
 
-      recognitionRef.current.onend = () => {
-        setIsSpeaking(false);
-      };
-
-      recognitionRef.current.onerror = (event: SpeechRecognitionErrorEvent) => {
-        console.log('Speech recognition error:', event.error, event.message);
-        setIsSpeaking(false);
-
-        // Automatically restart recognition for no-speech errors
-        if (event.error === 'no-speech' && !isMuted) {
-          setTimeout(() => {
-            if (recognitionRef.current && !isMuted) {
-              recognitionRef.current.stop();
-              recognitionRef.current.start();
-            }
-          }, 1000);
-        }
-      };
-
-      recognitionRef.current.start();
+      // Update state and localStorage
+      setConversation(newConversation);
+      localStorage.setItem('interviewConversation', JSON.stringify(newConversation));
+      console.log("newConversation", newConversation);
+    } catch (error) {
+      console.error('Failed to get next question:', error);
     }
   };
 
   useEffect(() => {
     startVideo();
-    startSpeechRecognition();
     return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
+      const stream = videoRef.current?.srcObject as MediaStream;
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
       }
     };
   }, []);
@@ -212,13 +155,6 @@ export default function InterviewPage() {
         track.enabled = isMuted;
       });
       setIsMuted(!isMuted);
-      
-      // Handle speech recognition
-      if (isMuted) {
-        recognitionRef.current?.start();
-      } else {
-        recognitionRef.current?.stop();
-      }
     }
   };
 
@@ -244,19 +180,16 @@ export default function InterviewPage() {
               autoPlay
               playsInline
               muted
-              className="absolute inset-0 w-full h-full object-cover"
+              className="inset-0 w-full h-full object-cover"
             />
             
             {/* Controls Overlay */}
             <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex gap-4 bg-black/50 p-3 rounded-full">
               <button
                 onClick={toggleMic}
-                className={`relative p-3 rounded-full ${isMuted ? 'bg-red-500' : 'bg-gray-600'} hover:bg-opacity-80 transition-colors`}
+                className={`p-3 rounded-full ${isMuted ? 'bg-red-500' : 'bg-gray-600'} hover:bg-opacity-80 transition-colors`}
               >
-                {isSpeaking && !isMuted && (
-                  <span className="absolute inset-0 rounded-full animate-ping bg-teal-400 opacity-75"></span>
-                )}
-                {isMuted ? <MicOff className="text-white" /> : <Mic className="text-white relative z-10" />}
+                {isMuted ? <MicOff className="text-white" /> : <Mic className="text-white" />}
               </button>
               <button
                 onClick={toggleCamera}
@@ -298,18 +231,23 @@ export default function InterviewPage() {
           </div>
         </div>
 
-        {/* Current Response */}
-        {currentResponse && (
-          <div className="bg-gray-50 rounded-lg p-4 mb-6 flex-shrink-0">
-            <div className="flex items-center gap-2 mb-2">
-              <MessageCircle className="text-teal-600" />
-              <h3 className="text-sm font-semibold text-[#1a365d]">Currently Speaking:</h3>
-            </div>
-            <div className="text-gray-600 text-sm">
-              {currentResponse}
-            </div>
+        {/* Response Input */}
+        <form onSubmit={handleSubmitResponse} className="mb-6">
+          <div className="flex gap-2">
+            <textarea
+              value={currentResponse}
+              onChange={(e) => setCurrentResponse(e.target.value)}
+              placeholder="Type your response..."
+              className="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-black"
+            />
+            <button
+              type="submit"
+              className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg transition-colors"
+            >
+              Send
+            </button>
           </div>
-        )}
+        </form>
 
         {/* Timer */}
         <div className="text-center text-gray-600 mb-6 flex-shrink-0">
@@ -320,11 +258,9 @@ export default function InterviewPage() {
         <button
           className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex-shrink-0"
           onClick={() => {
-            if (currentResponse.trim()) {
-              saveResponse(currentResponse);
-            }
-            if (recognitionRef.current) {
-              recognitionRef.current.stop();
+            const stream = videoRef.current?.srcObject as MediaStream;
+            if (stream) {
+              stream.getTracks().forEach(track => track.stop());
             }
             console.log('Interview ended');
           }}
