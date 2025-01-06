@@ -44,104 +44,87 @@ declare global {
   }
 }
 
-interface Response {
-  id: string;
-  question: string;
-  answer: string;
-  timestamp: number;
-  isInterim?: boolean;
-}
-
 export default function InterviewPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
-  const [currentQuestion, setCurrentQuestion] = useState('');
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [responses, setResponses] = useState<Response[]>([]);
   const [currentResponse, setCurrentResponse] = useState('');
   const [conversation, setConversation] = useState<Message[]>([]);
 
   useEffect(() => {
     // Load conversation from localStorage
+    console.log("loading conversation");
     const savedConversation = localStorage.getItem('interviewConversation');
-    console.log("savedConversation", savedConversation);
     if (savedConversation) {
+      console.log("savedConversation", savedConversation);
       const parsedConversation = JSON.parse(savedConversation);
+      console.log("parsedConversation", parsedConversation);
       setConversation(parsedConversation);
-      // Set the current question from the last assistant message
-      const lastAssistantMessage = parsedConversation
-        .filter((msg: Message) => msg.role === 'assistant')
-        .pop();
-      if (lastAssistantMessage) {
-        setCurrentQuestion(lastAssistantMessage.content);
-      }
+    } else {
+      console.log("no saved conversation");
     }
   }, []);
 
   const saveResponse = async (text: string, isInterim = false) => {
-    if (text.trim()) {
-      const newResponse: Response = {
-        id: Date.now().toString(),
-        question: currentQuestion,
-        answer: text,
-        timestamp: Date.now(),
-        isInterim
-      };
+    if (text.trim() && !isInterim) {
+      // Get the resume from localStorage
+      const resume = localStorage.getItem('userResume') || '';
 
-      if (!isInterim) {
-        // Get the resume from localStorage
-        const resume = localStorage.getItem('userResume') || '';
+      console.log("conversation in saveResponse", conversation);
+
+      const currentConversation = JSON.parse(localStorage.getItem('interviewConversation') || '[]');
+
+      // Update conversation with user's response
+      const updatedConversation: Message[] = [
+        ...currentConversation,
+        { role: 'user' as const, content: text }
+      ];
+
+      console.log("updatedConversation", updatedConversation);
+      setConversation(updatedConversation);
+      localStorage.setItem('interviewConversation', JSON.stringify(updatedConversation));
+
+      setIsMuted(true);
+
+      try {
+        // Make API call to get next question
+        const response = await fetch('http://localhost:8000/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            resume,
+            messages: updatedConversation
+          })
+        });
+
+        const data = await response.json();
         
-        // Update conversation with user's response
-        const updatedConversation: Message[] = [
-          ...conversation,
-          { role: 'user' as const, content: text }
+        // Add assistant's response to conversation
+        const currentConversation = JSON.parse(localStorage.getItem('interviewConversation') || '[]');
+        const newConversation: Message[] = [
+          ...currentConversation,
+          {
+            role: 'assistant' as const,
+            content: data.content
+          }
         ];
 
-        try {
-          // Make API call to get next question
-          const response = await fetch('http://localhost:8000/chat', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              resume,
-              messages: updatedConversation
-            })
-          });
-
-          console.log(response);
-
-          const data = await response.json();
-          
-          // Add assistant's response to conversation
-          const newConversation: Message[] = [
-            ...updatedConversation,
-            {
-              role: 'assistant' as const,
-              content: data.content
-            }
-          ];
-
-          // Update state and localStorage
-          setConversation(newConversation);
-          console.log(newConversation);
-          localStorage.setItem('interviewConversation', JSON.stringify(newConversation));
-          
-          // Set the new question
-          setCurrentQuestion(data.content);
-        } catch (error) {
-          console.error('Failed to get next question:', error);
-        }
+        // Update state and localStorage
+        setConversation(newConversation);
+        localStorage.setItem('interviewConversation', JSON.stringify(newConversation));
+        console.log("newConversation", newConversation);
+      } catch (error) {
+        console.error('Failed to get next question:', error);
       }
 
-      setResponses(prev => {
-        const filtered = prev.filter(r => !r.isInterim);
-        return [...filtered, newResponse];
-      });
+      setIsMuted(false);
+
+    } else if (isInterim) {
+      setCurrentResponse(text);
     }
   };
 
@@ -288,30 +271,27 @@ export default function InterviewPage() {
 
       {/* Interview Panel */}
       <div className="w-96 bg-white border-l border-gray-200 p-6 flex flex-col h-screen">
-        <div className="mb-6 flex-shrink-0">
-          <h2 className="text-2xl font-bold text-[#1a365d] mb-2">Current Question</h2>
-          <p className="text-gray-600">{currentQuestion}</p>
-        </div>
-
         {/* Chat Messages */}
         <div className="flex-1 bg-gray-50 rounded-lg p-4 mb-6 overflow-y-auto min-h-0">
           <div className="flex flex-col">
-            {responses.map((response) => (
+            {conversation.map((message, index) => (
               <div 
-                key={response.id} 
-                className={`mb-4 last:mb-0 ${
-                  response.isInterim ? 'opacity-50' : ''
-                }`}
+                key={index} 
+                className="mb-4 last:mb-0"
               >
                 <div className="flex flex-col gap-2">
-                  <div className="bg-teal-100 rounded-lg p-3 max-w-[80%] self-start">
-                    <p className="text-sm font-medium text-teal-800">Question:</p>
-                    <p className="text-sm text-teal-900">{response.question}</p>
-                  </div>
-                  <div className="bg-blue-100 rounded-lg p-3 max-w-[80%] self-end">
-                    <p className="text-sm font-medium text-blue-800">Answer:</p>
-                    <p className="text-sm text-blue-900">{response.answer}</p>
-                  </div>
+                  {message.role === 'assistant' && (
+                    <div className="bg-teal-100 rounded-lg p-3 max-w-[80%] self-start">
+                      <p className="text-sm font-medium text-teal-800">Question:</p>
+                      <p className="text-sm text-teal-900">{message.content}</p>
+                    </div>
+                  )}
+                  {message.role === 'user' && (
+                    <div className="bg-blue-100 rounded-lg p-3 max-w-[80%] self-end">
+                      <p className="text-sm font-medium text-blue-800">Answer:</p>
+                      <p className="text-sm text-blue-900">{message.content}</p>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
