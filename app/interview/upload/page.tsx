@@ -7,6 +7,7 @@ import { Upload, Loader2 } from 'lucide-react';
 export default function ResumeUploadPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [resumeText, setResumeText] = useState('');
   const router = useRouter();
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -20,34 +21,32 @@ export default function ResumeUploadPage() {
   };
 
   const handleUpload = async (file: File) => {
-    if (file.type === 'application/pdf') {
-      setIsLoading(true);
-      try {
-        // Here we'll implement the actual file upload logic
-        // For now, simulate a delay
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        router.push('/interview/start');
-      } catch (error) {
-        console.error('Upload failed:', error);
-        setIsLoading(false);
-      }
-    }
+    // Disabled for demo purposes
+    console.log('File upload disabled for demo');
   };
 
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      await handleUpload(files[0]);
-    }
+    // Disabled for demo purposes
   };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      await handleUpload(files[0]);
+    // Disabled for demo purposes
+  };
+
+  const handleSubmitResume = async () => {
+    if (resumeText.trim()) {
+      setIsLoading(true);
+      try {
+        // Here we'll implement the actual text processing logic
+        // For now, simulate a delay
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        router.push('/interview/start');
+      } catch (error) {
+        console.error('Processing failed:', error);
+        setIsLoading(false);
+      }
     }
   };
 
@@ -58,39 +57,58 @@ export default function ResumeUploadPage() {
           Upload Your Resume
         </h1>
 
+        {/* File upload UI (disabled for demo) */}
         <div 
-          className={`border-2 border-dashed rounded-lg p-12 mb-6 text-center
+          className={`border-2 border-dashed rounded-lg p-12 mb-6 text-center opacity-50
             ${isDragging ? 'border-teal-600 bg-teal-50' : 'border-gray-300'}
-            transition-colors cursor-pointer`}
+            transition-colors`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
-          {isLoading ? (
-            <div className="text-center">
-              <Loader2 className="w-12 h-12 text-teal-600 mx-auto mb-4 animate-spin" />
-              <p className="text-gray-600">Processing your resume...</p>
-            </div>
-          ) : (
-            <>
-              <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600 mb-4">
-                Drag and drop your resume here, or
-              </p>
-              <label className="bg-teal-600 text-white px-6 py-2 rounded-md text-lg font-semibold hover:bg-teal-700 transition-colors cursor-pointer">
-                Browse Files
-                <input
-                  type="file"
-                  accept=".pdf"
-                  className="hidden"
-                  onChange={handleFileSelect}
-                />
-              </label>
-              <p className="text-sm text-gray-500 mt-4">
-                PDF files only
-              </p>
-            </>
-          )}
+          <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-600 mb-4">
+            Drag and drop your resume here, or
+          </p>
+          <label className="bg-gray-400 text-white px-6 py-2 rounded-md text-lg font-semibold cursor-not-allowed">
+            Browse Files
+            <input
+              type="file"
+              accept=".pdf"
+              className="hidden"
+              disabled
+            />
+          </label>
+          <p className="text-sm text-gray-500 mt-4">
+            PDF files only (Disabled for demo)
+          </p>
+        </div>
+
+        {/* Resume text input */}
+        <div className="mt-8">
+          <h2 className="text-xl font-semibold text-[#1a365d] mb-4">
+            Or Paste Your Resume Content
+          </h2>
+          <textarea
+            className="w-full h-64 p-4 border-2 border-gray-300 rounded-lg focus:border-teal-600 focus:ring-1 focus:ring-teal-600 text-black"
+            placeholder="Paste your resume content here..."
+            value={resumeText}
+            onChange={(e) => setResumeText(e.target.value)}
+          />
+          <button
+            className="mt-4 bg-teal-600 text-white px-6 py-2 rounded-md text-lg font-semibold hover:bg-teal-700 transition-colors w-full"
+            onClick={handleSubmitResume}
+            disabled={isLoading || !resumeText.trim()}
+          >
+            {isLoading ? (
+              <div className="flex items-center justify-center">
+                <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                Processing...
+              </div>
+            ) : (
+              'Submit Resume'
+            )}
+          </button>
         </div>
       </div>
     </main>
