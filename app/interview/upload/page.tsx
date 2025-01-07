@@ -21,10 +21,11 @@ export default function ResumeUploadPage() {
     setIsDragging(false);
   };
 
-  const handleUpload = async (file: File) => {
-    // Disabled for demo purposes
-    console.log('File upload disabled for demo');
-  };
+  // Commented out for demo purposes
+  // const handleUpload = async (file: File) => {
+  //   // Disabled for demo purposes
+  //   console.log('File upload disabled for demo');
+  // };
 
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
@@ -32,9 +33,10 @@ export default function ResumeUploadPage() {
     // Disabled for demo purposes
   };
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Disabled for demo purposes
-  };
+  // Commented out for demo purposes
+  // const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  //   // Disabled for demo purposes
+  // };
 
   const handleSubmitResume = async () => {
     if (resumeText.trim()) {
