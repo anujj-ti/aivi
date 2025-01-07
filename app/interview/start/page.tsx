@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Mic, MicOff, Camera, CameraOff } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { BASE_URL } from '@/lib/constants';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -96,7 +97,7 @@ export default function InterviewPage() {
 
     try {
       // Make API call to get next question
-      const response = await fetch('http://localhost:8000/chat', {
+      const response = await fetch(`${BASE_URL}/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

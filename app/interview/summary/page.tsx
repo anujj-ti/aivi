@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { BASE_URL } from '@/lib/constants';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -49,7 +50,7 @@ export default function SummaryPage() {
           content: msg.content
         }));
 
-        const response = await fetch('http://localhost:8000/feedback', {
+        const response = await fetch(`${BASE_URL}/feedback`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

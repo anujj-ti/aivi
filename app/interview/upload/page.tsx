@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Upload, Loader2, ArrowLeft } from 'lucide-react';
+import { BASE_URL } from '@/lib/constants';
 
 export default function ResumeUploadPage() {
   const [isDragging, setIsDragging] = useState(false);
@@ -47,7 +48,7 @@ export default function ResumeUploadPage() {
         localStorage.setItem('userResume', resumeText.trim());
 
         // Make API call to get initial questions
-        const response = await fetch('http://localhost:8000/chat', {
+        const response = await fetch(`${BASE_URL}/chat`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
