@@ -3,7 +3,19 @@ import Link from 'next/link';
 
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center px-6 py-24 max-w-7xl mx-auto">
+    <main className="flex min-h-screen flex-col items-center px-6 py-24 max-w-7xl mx-auto relative">
+      {/* Sample Link */}
+      <div className="absolute top-6 right-6 flex items-center gap-4">
+        <div className="bg-blue-50 border border-blue-200 rounded-md px-3 py-2 text-sm text-blue-700">
+          <span className="font-medium">New:</span> Check out a sample interview to see how it works!
+        </div>
+        <Link href="/sample">
+          <button className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg transition-colors shadow-sm">
+            View Sample
+          </button>
+        </Link>
+      </div>
+
       {/* Hero Section */}
       <div className="text-center mb-16">
         <h1 className="text-4xl md:text-5xl font-bold text-[#1a365d] mb-6">
