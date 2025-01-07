@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Mic, MicOff, Camera, CameraOff } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -45,6 +46,7 @@ declare global {
 }
 
 export default function InterviewPage() {
+  const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const [isMuted, setIsMuted] = useState(false);
@@ -271,7 +273,7 @@ export default function InterviewPage() {
             if (stream) {
               stream.getTracks().forEach(track => track.stop());
             }
-            console.log('Interview ended');
+            router.push('/interview/summary');
           }}
         >
           End Interview
