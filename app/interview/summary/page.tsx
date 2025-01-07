@@ -19,6 +19,7 @@ export default function SummaryPage() {
       try {
         const savedConversation = localStorage.getItem('interviewConversation');
         const savedResume = localStorage.getItem('userResume');
+        const savedAssessment = localStorage.getItem('interviewAssessment');
         
         if (!savedConversation || !savedResume) {
           setError('No interview data found. Please start a new interview.');
@@ -31,6 +32,13 @@ export default function SummaryPage() {
         
         if (parsedConversation.length === 0) {
           setError('No interview questions found. Please start a new interview.');
+          setIsLoading(false);
+          return;
+        }
+
+        // If we have a saved assessment, use it
+        if (savedAssessment) {
+          setAssessment(savedAssessment);
           setIsLoading(false);
           return;
         }
@@ -57,6 +65,7 @@ export default function SummaryPage() {
         }
 
         const data = await response.json();
+        localStorage.setItem('interviewAssessment', data.content);
         setAssessment(data.content);
       } catch (error) {
         console.error('Error fetching assessment:', error);
