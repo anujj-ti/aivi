@@ -39,6 +39,10 @@ export default function ResumeUploadPage() {
     if (resumeText.trim()) {
       setIsLoading(true);
       try {
+        // Remove old assessment and conversation
+        localStorage.removeItem('interviewAssessment');
+        localStorage.removeItem('interviewConversation');
+
         // Store resume in localStorage
         localStorage.setItem('userResume', resumeText.trim());
 
