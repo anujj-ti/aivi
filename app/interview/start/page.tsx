@@ -53,6 +53,7 @@ export default function InterviewPage() {
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [currentResponse, setCurrentResponse] = useState('');
   const [conversation, setConversation] = useState<Message[]>([]);
+  const [showEndModal, setShowEndModal] = useState(false);
 
   useEffect(() => {
     // Load conversation from localStorage
@@ -122,6 +123,24 @@ export default function InterviewPage() {
       setConversation(newConversation);
       localStorage.setItem('interviewConversation', JSON.stringify(newConversation));
       console.log("newConversation", newConversation);
+
+      // Check if the response contains [END OF INTERVIEW]
+      if (data.content.includes('[END OF INTERVIEW]')) {
+        // Add the final response to the conversation
+        const finalConversation: Message[] = [
+          ...updatedConversation,
+          {
+            role: 'assistant' as const,
+            content: data.content
+          }
+        ];
+        setConversation(finalConversation);
+        localStorage.setItem('interviewConversation', JSON.stringify(finalConversation));
+        
+        // Show the end modal
+        setShowEndModal(true);
+        return;
+      }
     } catch (error) {
       console.error('Failed to get next question:', error);
     }
@@ -279,6 +298,30 @@ export default function InterviewPage() {
           End Interview
         </button>
       </div>
+
+      {/* End Interview Modal */}
+      {showEndModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">Interview Complete</h2>
+            <p className="text-gray-600 mb-6">
+              The interview has ended. Click the button below to see your feedback and summary.
+            </p>
+            <button
+              onClick={() => {
+                const stream = videoRef.current?.srcObject as MediaStream;
+                if (stream) {
+                  stream.getTracks().forEach(track => track.stop());
+                }
+                router.push('/interview/summary');
+              }}
+              className="w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+            >
+              View Summary
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 } 
