@@ -1,8 +1,15 @@
 import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 
 export default function InterviewPage() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center px-6">
+    <main className="flex min-h-screen flex-col items-center justify-center bg-gray-100 px-6">
+      <Link href="/">
+        <button className="absolute top-6 left-6 flex items-center bg-white px-4 py-2 rounded-lg shadow-sm hover:bg-gray-50 text-gray-700 hover:text-gray-900 transition-colors">
+          <ArrowLeft className="w-5 h-5 mr-2" />
+          Back to Home
+        </button>
+      </Link>
       <div className="bg-white rounded-lg shadow-lg p-12 max-w-2xl w-full">
         <h1 className="text-3xl font-bold text-[#1a365d] mb-8 text-center">
           Welcome to Your AI Interview

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Upload, Loader2 } from 'lucide-react';
+import { Upload, Loader2, ArrowLeft } from 'lucide-react';
 
 export default function ResumeUploadPage() {
   const [isDragging, setIsDragging] = useState(false);
@@ -86,7 +86,14 @@ export default function ResumeUploadPage() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center px-6">
+    <main className="flex min-h-screen flex-col items-center justify-center bg-gray-100 px-6">
+      <button
+        onClick={() => router.push('/interview')}
+        className="absolute top-6 left-6 flex items-center bg-white px-4 py-2 rounded-lg shadow-sm hover:bg-gray-50 text-gray-700 hover:text-gray-900 transition-colors"
+      >
+        <ArrowLeft className="w-5 h-5 mr-2" />
+        Back to Interview
+      </button>
       <div className="bg-white rounded-lg shadow-lg p-12 max-w-2xl w-full">
         <h1 className="text-3xl font-bold text-[#1a365d] mb-8 text-center">
           Upload Your Resume
