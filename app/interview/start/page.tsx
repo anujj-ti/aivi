@@ -48,7 +48,8 @@ declare global {
 
 export default function InterviewPage() {
   const router = useRouter();
-  const videoRef = useRef<HTMLVideoElement>(null);
+  // Commented out video functionality for demo
+  // const videoRef = useRef<HTMLVideoElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
@@ -147,49 +148,49 @@ export default function InterviewPage() {
     }
   };
 
-  useEffect(() => {
-    startVideo();
-    return () => {
-      const stream = videoRef.current?.srcObject as MediaStream;
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, []);
+  // Comment out video-related effects and functions
+  // useEffect(() => {
+  //   let stream: MediaStream | null = null;
+  //   const startVideo = async () => {
+  //     try {
+  //       stream = await navigator.mediaDevices.getUserMedia({
+  //         video: true,
+  //         audio: true
+  //       });
+  //       if (videoRef.current) {
+  //         videoRef.current.srcObject = stream;
+  //       }
+  //     } catch (err) {
+  //       console.error("Error accessing media devices:", err);
+  //     }
+  //   };
+  //   startVideo();
+  //   return () => {
+  //     if (stream) {
+  //       stream.getTracks().forEach(track => track.stop());
+  //     }
+  //   };
+  // }, []);
 
-  const startVideo = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-    } catch (err) {
-      console.error("Error accessing media devices:", err);
-    }
-  };
+  // const toggleMic = () => {
+  //   const stream = videoRef.current?.srcObject as MediaStream;
+  //   if (stream) {
+  //     stream.getAudioTracks().forEach(track => {
+  //       track.enabled = isMuted;
+  //     });
+  //     setIsMuted(!isMuted);
+  //   }
+  // };
 
-  const toggleMic = () => {
-    const stream = videoRef.current?.srcObject as MediaStream;
-    if (stream) {
-      stream.getAudioTracks().forEach(track => {
-        track.enabled = isMuted;
-      });
-      setIsMuted(!isMuted);
-    }
-  };
-
-  const toggleCamera = () => {
-    const stream = videoRef.current?.srcObject as MediaStream;
-    if (stream) {
-      stream.getVideoTracks().forEach(track => {
-        track.enabled = isCameraOff;
-      });
-      setIsCameraOff(!isCameraOff);
-    }
-  };
+  // const toggleCamera = () => {
+  //   const stream = videoRef.current?.srcObject as MediaStream;
+  //   if (stream) {
+  //     stream.getVideoTracks().forEach(track => {
+  //       track.enabled = isCameraOff;
+  //     });
+  //     setIsCameraOff(!isCameraOff);
+  //   }
+  // };
 
   useEffect(() => {
     // Scroll to bottom whenever conversation updates
@@ -204,25 +205,23 @@ export default function InterviewPage() {
       <div className="flex-1 p-6">
         <div className="bg-white rounded-lg shadow-lg p-6 h-full flex flex-col">
           {/* Video Display */}
-          <div className="relative flex-1 bg-gray-900 rounded-lg mb-6 overflow-hidden h-[600px]">
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="absolute inset-0 w-full h-full object-cover"
-            />
+          <div className="relative flex-1 bg-gray-900 rounded-lg mb-6 overflow-hidden h-[600px] flex items-center justify-center">
+            <div className="text-white text-center p-6">
+              <h3 className="text-xl font-semibold mb-2">Video Interview Demo</h3>
+              <p className="text-gray-300">Video functionality is disabled in this demo version.</p>
+              <p className="text-gray-400 text-sm mt-2">In the full version, you would see your video feed here.</p>
+            </div>
             
             {/* Controls Overlay */}
             <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex gap-4 bg-black/50 p-3 rounded-full">
               <button
-                onClick={toggleMic}
+                onClick={() => setIsMuted(!isMuted)}
                 className={`p-3 rounded-full ${isMuted ? 'bg-red-500' : 'bg-gray-600'} hover:bg-opacity-80 transition-colors`}
               >
                 {isMuted ? <MicOff className="text-white" /> : <Mic className="text-white" />}
               </button>
               <button
-                onClick={toggleCamera}
+                onClick={() => setIsCameraOff(!isCameraOff)}
                 className={`p-3 rounded-full ${isCameraOff ? 'bg-red-500' : 'bg-gray-600'} hover:bg-opacity-80 transition-colors`}
               >
                 {isCameraOff ? <CameraOff className="text-white" /> : <Camera className="text-white" />}
@@ -235,7 +234,7 @@ export default function InterviewPage() {
       {/* Interview Panel */}
       <div className="w-[500px] bg-white border-l border-gray-200 p-6 flex flex-col h-screen overflow-hidden">
         {/* Chat Messages */}
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">Conversation</h2>
+        <h2 className="text-xl font-semibold text-gray-800 mb-4">Conversation Anuj</h2>
         <div ref={chatContainerRef} className="flex-1 bg-gray-50 rounded-lg p-4 mb-6 overflow-y-auto min-h-0">
           <div className="flex flex-col">
             {conversation.map((message, index) => (
@@ -288,13 +287,7 @@ export default function InterviewPage() {
         {/* End Interview Button */}
         <button
           className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex-shrink-0"
-          onClick={() => {
-            const stream = videoRef.current?.srcObject as MediaStream;
-            if (stream) {
-              stream.getTracks().forEach(track => track.stop());
-            }
-            router.push('/interview/summary');
-          }}
+          onClick={() => router.push('/interview/summary')}
         >
           End Interview
         </button>
@@ -309,13 +302,7 @@ export default function InterviewPage() {
               The interview has ended. Click the button below to see your feedback and summary.
             </p>
             <button
-              onClick={() => {
-                const stream = videoRef.current?.srcObject as MediaStream;
-                if (stream) {
-                  stream.getTracks().forEach(track => track.stop());
-                }
-                router.push('/interview/summary');
-              }}
+              onClick={() => router.push('/interview/summary')}
               className="w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
             >
               View Summary
