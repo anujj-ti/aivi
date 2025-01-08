@@ -34,7 +34,7 @@ export default function InterviewPage() {
     if (!isRecording && currentText) {
       saveResponse(currentText);
     }
-  }, [isRecording]);
+  }, [isRecording, currentText]);
 
   const saveResponse = async (text: string) => {
     // Get the resume from localStorage
