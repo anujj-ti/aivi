@@ -1,160 +1,17 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
-
-interface Transcription {
-  text: string;
-  timestamp: number;
-}
+import { useAudioRecorder } from '@/lib/hooks/useAudioRecorder';
+import { Transcription } from '@/lib/types/audio';
 
 export default function TestPage() {
-  const [isRecording, setIsRecording] = useState(false);
-  const [transcriptions, setTranscriptions] = useState<Transcription[]>([]);
-  const [currentText, setCurrentText] = useState<string>('');
-  const [error, setError] = useState<string | null>(null);
-  const [hasMicPermission, setHasMicPermission] = useState<boolean>(false);
-  
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-
-  // Check microphone permission on component mount
-  useEffect(() => {
-    checkMicrophonePermission();
-  }, []);
-
-  const checkMicrophonePermission = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach(track => track.stop()); // Stop the test stream
-      setHasMicPermission(true);
-      setError(null);
-    } catch (err) {
-      console.error('Microphone permission error:', err);
-      setHasMicPermission(false);
-      setError('Please grant microphone permission to use this feature.');
-    }
-  };
-
-  const startRecording = async () => {
-    try {
-      if (!hasMicPermission) {
-        await checkMicrophonePermission();
-        if (!hasMicPermission) return;
-      }
-
-      console.log('Starting recording session...');
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        } 
-      });
-      console.log('Microphone access granted');
-
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm'
-      });
-      console.log('MediaRecorder created with mimeType:', mediaRecorder.mimeType);
-      
-      mediaRecorderRef.current = mediaRecorder;
-      chunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          console.log('Data chunk received:', event.data.size, 'bytes');
-          chunksRef.current.push(event.data);
-        }
-      };
-
-      // Start recording immediately
-      mediaRecorder.start(1000);
-      setIsRecording(true);
-      console.log('Recording started - collecting chunks every second');
-
-    } catch (error) {
-      console.error('Error in recording:', error);
-      setError('Error accessing microphone. Please ensure you have granted permission.');
-      setIsRecording(false);
-    }
-  };
-
-  const stopRecording = useCallback(() => {
-    console.log('Stopping recording...');
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream.getTracks().forEach(track => {
-        track.stop();
-        console.log('Stopped audio track:', track.kind);
-      });
-      
-      // Process any remaining chunks
-      if (chunksRef.current.length > 0) {
-        const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
-        sendAudioForTranscription(audioBlob);
-        chunksRef.current = [];
-      }
-      
-      setIsRecording(false);
-      console.log('Recording stopped');
-    }
-  }, [isRecording]);
-
-  const sendAudioForTranscription = async (audioBlob: Blob) => {
-    const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
-    if (!apiKey) {
-      throw new Error('OpenAI API key is missing');
-    }
-
-    console.log('Preparing transcription request...');
-    const formData = new FormData();
-    formData.append('file', audioBlob, 'audio.webm');
-    formData.append('model', 'whisper-1');
-    formData.append('language', 'en');
-
-    try {
-      console.log('Sending request to Whisper API...');
-      const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: formData
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API Error:', response.status, errorText);
-        throw new Error(`API error: ${response.status} - ${errorText}`);
-      }
-
-      const data = await response.json();
-      console.log('Received transcription:', data);
-
-      if (data.text?.trim()) {
-        const newTranscription: Transcription = {
-          text: data.text.trim(),
-          timestamp: Date.now()
-        };
-        setTranscriptions(prev => [...prev, newTranscription]);
-        setCurrentText(data.text.trim());
-        console.log('Updated transcription state');
-      }
-    } catch (error) {
-      console.error('Transcription error:', error);
-      setError('Error transcribing audio. Please try again.');
-      throw error; // Re-throw to handle in the calling function
-    }
-  };
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (mediaRecorderRef.current && isRecording) {
-        stopRecording();
-      }
-    };
-  }, [isRecording, stopRecording]);
+  const {
+    isRecording,
+    error,
+    currentText,
+    transcriptions,
+    startRecording,
+    stopRecording
+  } = useAudioRecorder();
 
   return (
     <main className="min-h-screen p-8 bg-gray-50">
@@ -193,7 +50,7 @@ export default function TestPage() {
               <div className="border rounded-lg p-4">
                 <h2 className="text-lg font-semibold mb-2">Transcription History:</h2>
                 <div className="space-y-2">
-                  {transcriptions.map((trans, index) => (
+                  {transcriptions.map((trans: Transcription, index: number) => (
                     <div key={index} className="p-2 bg-gray-50 rounded">
                       <p className="text-gray-700">{trans.text}</p>
                       <p className="text-xs text-gray-500">
