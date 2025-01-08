@@ -14,6 +14,11 @@ export const useAudioRecorder = () => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
+  const reset = useCallback(() => {
+    setCurrentText('');
+    setTranscriptions([]);
+  }, []);
+
   const checkMicrophonePermission = async () => {
     try {
       const stream = await getMicrophoneStream();
@@ -113,6 +118,7 @@ export const useAudioRecorder = () => {
     currentText,
     transcriptions,
     startRecording,
-    stopRecording
+    stopRecording,
+    reset
   };
 }; 

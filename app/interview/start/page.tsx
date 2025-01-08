@@ -20,7 +20,8 @@ export default function InterviewPage() {
     error: micError,
     currentText,
     startRecording,
-    stopRecording
+    stopRecording,
+    reset: resetRecorder
   } = useAudioRecorder();
 
   const speakQuestion = useCallback(async (text: string) => {
@@ -59,7 +60,12 @@ export default function InterviewPage() {
   }, [speakQuestion]);
 
   const saveResponse = useCallback(async (text: string) => {
+    if (!text.trim()) return; // Don't save empty responses
+    
     setIsLoading(true);
+    // Reset the recorder state immediately to prevent showing old text
+    resetRecorder();
+    
     // Get the resume from localStorage
     const resume = localStorage.getItem('userResume') || '';
     const currentConversation = JSON.parse(localStorage.getItem('interviewConversation') || '[]');
@@ -90,10 +96,8 @@ export default function InterviewPage() {
       setConversation(newConversation);
       localStorage.setItem('interviewConversation', JSON.stringify(newConversation));
 
-      console.log("speaking question", data.content);
-
       // Speak the new question
-      speakQuestion(data.content);
+      await speakQuestion(data.content);
 
       // Check if the response contains [END OF INTERVIEW]
       if (data.content.includes('[END OF INTERVIEW]')) {
@@ -104,7 +108,7 @@ export default function InterviewPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [setConversation, setIsLoading, setShowEndModal, speakQuestion]);
+  }, [setConversation, setIsLoading, setShowEndModal, speakQuestion, resetRecorder]);
 
   useEffect(() => {
     if (!isRecording && currentText) {
@@ -228,7 +232,7 @@ export default function InterviewPage() {
       {showEndModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
           <div className="bg-white rounded-lg p-6 max-w-md">
-            <h3 className="text-xl font-semibold mb-4">Interview Complete</h3>
+            <h3 className="text-gray-900 text-xl font-semibold mb-4">Interview Complete</h3>
             <p className="text-gray-600 mb-6">
               The interview has concluded. Would you like to view your summary?
             </p>
