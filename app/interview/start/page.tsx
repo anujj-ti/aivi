@@ -3,13 +3,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Mic, MicOff, Camera } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { BASE_URL } from '@/lib/constants';
 import { useAudioRecorder } from '@/lib/hooks/useAudioRecorder';
-
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-}
+import { Message } from '@/lib/types/chat';
+import { interviewApi } from '@/lib/services/api';
 
 export default function InterviewPage() {
   const router = useRouter();
@@ -48,32 +44,21 @@ export default function InterviewPage() {
     // Update conversation with user's response
     const updatedConversation: Message[] = [
       ...currentConversation,
-      { role: 'user' as const, content: text }
+      { role: 'user', content: text }
     ];
 
     setConversation(updatedConversation);
     localStorage.setItem('interviewConversation', JSON.stringify(updatedConversation));
 
     try {
-      // Make API call to get next question
-      const response = await fetch(`${BASE_URL}/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          resume,
-          messages: updatedConversation
-        })
-      });
-
-      const data = await response.json();
+      // Make API call to get next question using the API service
+      const data = await interviewApi.getNextQuestion(resume, updatedConversation);
       
       // Add assistant's response to conversation
       const newConversation: Message[] = [
         ...updatedConversation,
         {
-          role: 'assistant' as const,
+          role: 'assistant',
           content: data.content
         }
       ];

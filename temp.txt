@@ -1,0 +1,14 @@
+We are currently thinking about our action plan for this quarter:
+
+Broadly, we want to:
+- support for other platform starting with LinkinIn, X
+- support for "quality" short form video generation with the help of Athena team's pipeline.
+
+Additionally, we want to:
+- do competitor analysis, which other platform are doing similar things
+    - checkout features which are not supported by us and add them.
+    - compare quality and if they are better, then how they are better.
+
+Regarding deliverables for today:
+- we will integrate social surge with LinkedIn or X
+- competitor analysis for our platform with the mentioned details
