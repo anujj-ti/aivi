@@ -16,7 +16,6 @@ export default function TestPage() {
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const processingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Check microphone permission on component mount
   useEffect(() => {
@@ -73,27 +72,6 @@ export default function TestPage() {
       setIsRecording(true);
       console.log('Recording started - collecting chunks every second');
 
-      // Process chunks every 3 seconds
-      processingIntervalRef.current = setInterval(async () => {
-        if (chunksRef.current.length > 0) {
-          console.log(`Processing ${chunksRef.current.length} chunks...`);
-          const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
-          console.log('Created audio blob:', audioBlob.size, 'bytes');
-          
-          // Clear chunks before sending to avoid duplicate processing
-          const currentChunks = [...chunksRef.current];
-          chunksRef.current = [];
-          
-          try {
-            await sendAudioForTranscription(audioBlob);
-          } catch (error) {
-            console.error('Failed to process audio chunks:', error);
-            // Put the chunks back if processing failed
-            chunksRef.current = [...currentChunks, ...chunksRef.current];
-          }
-        }
-      }, 3000);
-
     } catch (error) {
       console.error('Error in recording:', error);
       setError('Error accessing microphone. Please ensure you have granted permission.');
@@ -115,12 +93,6 @@ export default function TestPage() {
         const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
         sendAudioForTranscription(audioBlob);
         chunksRef.current = [];
-      }
-
-      // Clear the processing interval
-      if (processingIntervalRef.current) {
-        clearInterval(processingIntervalRef.current);
-        console.log('Cleared processing interval');
       }
       
       setIsRecording(false);
@@ -178,9 +150,6 @@ export default function TestPage() {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (processingIntervalRef.current) {
-        clearInterval(processingIntervalRef.current);
-      }
       if (mediaRecorderRef.current && isRecording) {
         stopRecording();
       }
