@@ -12,6 +12,7 @@ export default function InterviewPage() {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const [conversation, setConversation] = useState<Message[]>([]);
   const [showEndModal, setShowEndModal] = useState(false);
+  const [showConfirmEndModal, setShowConfirmEndModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -219,6 +220,17 @@ export default function InterviewPage() {
               {isRecording ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
               {isRecording ? 'Stop Recording' : isLoading ? 'Processing...' : 'Start Recording'}
             </button>
+            <button
+              onClick={() => setShowConfirmEndModal(true)}
+              disabled={isRecording || isLoading}
+              className={`px-6 py-3 rounded-full text-white font-semibold transition-all ${
+                isRecording || isLoading
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-red-500 hover:bg-red-600'
+              }`}
+            >
+              End Interview
+            </button>
           </div>
           {isRecording && (
             <p className="text-center text-sm text-gray-600 mt-2">
@@ -228,7 +240,7 @@ export default function InterviewPage() {
         </div>
       </div>
 
-      {/* End Interview Modal */}
+      {/* End Interview Modal (Auto) */}
       {showEndModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
           <div className="bg-white rounded-lg p-6 max-w-md">
@@ -242,6 +254,35 @@ export default function InterviewPage() {
                 className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
               >
                 View Summary
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm End Interview Modal (Manual) */}
+      {showConfirmEndModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg p-6 max-w-md">
+            <h3 className="text-gray-900 text-xl font-semibold mb-4">End Interview?</h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to end the interview? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-4">
+              <button
+                onClick={() => setShowConfirmEndModal(false)}
+                className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setShowConfirmEndModal(false);
+                  router.push('/interview/summary');
+                }}
+                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+              >
+                End Interview
               </button>
             </div>
           </div>
