@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
-    const { text, voice = 'alloy', model = 'tts-1' } = await request.json();
+    const { text, voice = 'alloy', speed = 1 } = await request.json();
     
     if (!text) {
       return NextResponse.json(
@@ -26,9 +26,10 @@ export async function POST(request: Request) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model,
+        model: 'tts-1',
         input: text,
         voice,
+        speed,
         response_format: 'mp3',
       }),
     });

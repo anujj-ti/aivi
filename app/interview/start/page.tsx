@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Mic, MicOff, Camera } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAudioRecorder } from '@/lib/hooks/useAudioRecorder';
@@ -13,6 +13,7 @@ export default function InterviewPage() {
   const [conversation, setConversation] = useState<Message[]>([]);
   const [showEndModal, setShowEndModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   const {
     isRecording,
@@ -22,22 +23,36 @@ export default function InterviewPage() {
     stopRecording
   } = useAudioRecorder();
 
+  const speakQuestion = useCallback(async (text: string) => {
+    try {
+      const audioData = await interviewApi.textToSpeech(text, 'nova', 1.5);
+      const blob = new Blob([audioData], { type: 'audio/mpeg' });
+      const url = URL.createObjectURL(blob);
+      
+      if (audioRef.current) {
+        audioRef.current.src = url;
+        audioRef.current.play();
+      }
+    } catch (error) {
+      console.error('Failed to speak question:', error);
+    }
+  }, []);
+
   useEffect(() => {
     // Load conversation from localStorage
     const savedConversation = localStorage.getItem('interviewConversation');
     if (savedConversation) {
       const parsedConversation = JSON.parse(savedConversation);
       setConversation(parsedConversation);
+      // Speak the last question if it exists
+      const lastMessage = parsedConversation[parsedConversation.length - 1];
+      if (lastMessage && lastMessage.role === 'assistant') {
+        speakQuestion(lastMessage.content);
+      }
     }
-  }, []);
+  }, [speakQuestion]);
 
-  useEffect(() => {
-    if (!isRecording && currentText) {
-      saveResponse(currentText);
-    }
-  }, [isRecording, currentText]);
-
-  const saveResponse = async (text: string) => {
+  const saveResponse = useCallback(async (text: string) => {
     setIsLoading(true);
     // Get the resume from localStorage
     const resume = localStorage.getItem('userResume') || '';
@@ -69,6 +84,9 @@ export default function InterviewPage() {
       setConversation(newConversation);
       localStorage.setItem('interviewConversation', JSON.stringify(newConversation));
 
+      // Speak the new question
+      speakQuestion(data.content);
+
       // Check if the response contains [END OF INTERVIEW]
       if (data.content.includes('[END OF INTERVIEW]')) {
         setShowEndModal(true);
@@ -78,7 +96,13 @@ export default function InterviewPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [setConversation, setIsLoading, setShowEndModal, speakQuestion]);
+
+  useEffect(() => {
+    if (!isRecording && currentText) {
+      saveResponse(currentText);
+    }
+  }, [isRecording, currentText, saveResponse]);
 
   useEffect(() => {
     // Scroll to bottom whenever conversation updates
@@ -89,6 +113,9 @@ export default function InterviewPage() {
 
   return (
     <main className="flex min-h-screen bg-gray-100">
+      {/* Hidden audio element for TTS playback */}
+      <audio ref={audioRef} className="hidden" />
+      
       {/* Video Section */}
       <div className="w-1/2 p-6">
         <div className="bg-white rounded-lg shadow-lg p-6 h-full flex flex-col">

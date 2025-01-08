@@ -28,4 +28,30 @@ export const interviewApi = {
       throw error;
     }
   },
+
+  // Convert text to speech
+  textToSpeech: async (text: string, voice: string = 'alloy', speed: number = 1.0): Promise<ArrayBuffer> => {
+    try {
+      const response = await fetch('/api/speech', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text,
+          voice,
+          speed,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('TTS request failed');
+      }
+
+      return await response.arrayBuffer();
+    } catch (error) {
+      console.error('Failed to convert text to speech:', error);
+      throw error;
+    }
+  },
 }; 
