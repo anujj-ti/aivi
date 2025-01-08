@@ -12,7 +12,7 @@ export default function InterviewPage() {
       </Link>
       <div className="bg-white rounded-lg shadow-lg p-12 max-w-2xl w-full">
         <h1 className="text-3xl font-bold text-[#1a365d] mb-8 text-center">
-          Welcome to Your AI Interview
+          Welcome to Your Automated Software Developer Engineer Interview
         </h1>
 
         <section className="mb-8">
