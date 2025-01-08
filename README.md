@@ -57,6 +57,6 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 2. Conduct long interviews (15 minutes): Initially, the application will focus on conducting very short interviews starting with questions based on the candidate's resume and dynamically adapting its questioning based on their responses. Later, functionality for longer interviews of up to 15 minutes will be added.
 
-4. Intervene if the candidate is going off track or repeating details: The AI will politely steer the conversation back to the topic with phrases like:
+4. Intervene (without waiting for the candidate to finish) if the candidate is going off track or repeating details: The AI will politely steer the conversation back to the topic with phrases like:
     - "Let’s focus on [specific topic]. Could you elaborate more on that?"
     - "You already mentioned [repeated detail]. Let’s move on to another aspect of this."
