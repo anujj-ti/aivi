@@ -17,7 +17,6 @@ export default function TestPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const processingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const headerChunkRef = useRef<Blob | null>(null);
 
   // Check microphone permission on component mount
   useEffect(() => {
@@ -37,31 +36,11 @@ export default function TestPage() {
     }
   };
 
-  // Cleanup on unmount only
-  useEffect(() => {
-    return () => {
-      // Only cleanup on component unmount
-      if (mediaRecorderRef.current) {
-        mediaRecorderRef.current.stop();
-        mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
-      }
-      if (processingIntervalRef.current) {
-        clearInterval(processingIntervalRef.current);
-      }
-    };
-  }, []); // Empty dependency array - only run on mount/unmount
-
   const startRecording = async () => {
     try {
       if (!hasMicPermission) {
         await checkMicrophonePermission();
         if (!hasMicPermission) return;
-      }
-
-      // Clear any existing interval first
-      if (processingIntervalRef.current) {
-        clearInterval(processingIntervalRef.current);
-        processingIntervalRef.current = null;
       }
 
       console.log('Starting recording session...');
@@ -82,63 +61,39 @@ export default function TestPage() {
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
 
-      // Keep track of the first chunk which contains header information
-      let isFirstChunk = true;
-      headerChunkRef.current = null;
-
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           console.log('Data chunk received:', event.data.size, 'bytes');
-          if (isFirstChunk) {
-            headerChunkRef.current = event.data;
-            isFirstChunk = false;
-          }
           chunksRef.current.push(event.data);
         }
       };
 
       // Start recording immediately
       mediaRecorder.start(1000);
+      setIsRecording(true);
       console.log('Recording started - collecting chunks every second');
 
       // Process chunks every 3 seconds
-      console.log(`[${new Date().toISOString()}] Setting up processing interval...`);
-      const intervalId = setInterval(async () => {
-        console.log(`[${new Date().toISOString()}] Processing interval triggered - ID:`, intervalId);
+      processingIntervalRef.current = setInterval(async () => {
         if (chunksRef.current.length > 0) {
-          console.log(`[${new Date().toISOString()}] Processing ${chunksRef.current.length} chunks...`);
-          
-          // Always include the header chunk when creating a new blob
-          const chunksToProcess = headerChunkRef.current 
-            ? [headerChunkRef.current, ...chunksRef.current]
-            : chunksRef.current;
-          
-          const mimeType = mediaRecorder.mimeType.split(';')[0];
-          const audioBlob = new Blob(chunksToProcess, { 
-            type: mimeType
-          });
-          console.log(`[${new Date().toISOString()}] Created audio blob:`, audioBlob.size, 'bytes');
+          console.log(`Processing ${chunksRef.current.length} chunks...`);
+          const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
+          console.log('Created audio blob:', audioBlob.size, 'bytes');
           
           // Clear chunks before sending to avoid duplicate processing
-          // But keep the header chunk!
           const currentChunks = [...chunksRef.current];
           chunksRef.current = [];
           
           try {
             await sendAudioForTranscription(audioBlob);
           } catch (error) {
-            console.error(`[${new Date().toISOString()}] Failed to process audio chunks:`, error);
+            console.error('Failed to process audio chunks:', error);
             // Put the chunks back if processing failed
             chunksRef.current = [...currentChunks, ...chunksRef.current];
           }
-        } else {
-          console.log(`[${new Date().toISOString()}] No chunks to process in this interval`);
         }
       }, 3000);
-      processingIntervalRef.current = intervalId;
-      console.log(`[${new Date().toISOString()}] Processing interval set up with ID:`, intervalId);
 
-      setIsRecording(true);
     } catch (error) {
       console.error('Error in recording:', error);
       setError('Error accessing microphone. Please ensure you have granted permission.');
@@ -156,20 +111,15 @@ export default function TestPage() {
       });
       
       // Process any remaining chunks
-      if (chunksRef.current.length > 0 && headerChunkRef.current) {
-        const mimeType = mediaRecorderRef.current.mimeType.split(';')[0];
-        const audioBlob = new Blob([headerChunkRef.current, ...chunksRef.current], { 
-          type: mimeType
-        });
+      if (chunksRef.current.length > 0) {
+        const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
         sendAudioForTranscription(audioBlob);
         chunksRef.current = [];
       }
 
-      // Clear the processing interval if it exists and hasn't been cleared
+      // Clear the processing interval
       if (processingIntervalRef.current) {
-        console.log('Clearing processing interval:', processingIntervalRef.current);
         clearInterval(processingIntervalRef.current);
-        processingIntervalRef.current = null;
         console.log('Cleared processing interval');
       }
       
@@ -185,24 +135,10 @@ export default function TestPage() {
     }
 
     console.log('Preparing transcription request...');
-    console.log('Audio blob size:', audioBlob.size, 'bytes, type:', audioBlob.type);
-    
     const formData = new FormData();
-    // Strip codecs information from mime type and ensure we're using just audio/webm
-    const mimeType = audioBlob.type.split(';')[0]; // This will get just 'audio/webm'
-    console.log('Using mime type:', mimeType);
-    
-    // Ensure we're creating a proper file with the correct extension
-    const file = new File([audioBlob], 'audio.webm', { type: mimeType });
-    formData.append('file', file);
+    formData.append('file', audioBlob, 'audio.webm');
     formData.append('model', 'whisper-1');
     formData.append('language', 'en');
-
-    // Verify FormData contents
-    console.log('Form data entries:');
-    for (const [key, value] of formData.entries()) {
-      console.log(`- ${key}:`, value instanceof File ? `File (${value.size} bytes)` : value);
-    }
 
     try {
       console.log('Sending request to Whisper API...');
@@ -238,6 +174,18 @@ export default function TestPage() {
       throw error; // Re-throw to handle in the calling function
     }
   };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (processingIntervalRef.current) {
+        clearInterval(processingIntervalRef.current);
+      }
+      if (mediaRecorderRef.current && isRecording) {
+        stopRecording();
+      }
+    };
+  }, [isRecording, stopRecording]);
 
   return (
     <main className="min-h-screen p-8 bg-gray-50">
