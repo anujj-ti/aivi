@@ -25,6 +25,12 @@ export default function InterviewPage() {
 
   const speakQuestion = useCallback(async (text: string) => {
     try {
+      // Stop any existing audio playback
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+
       const audioData = await interviewApi.textToSpeech(text, 'nova', 1.5);
       const blob = new Blob([audioData], { type: 'audio/mpeg' });
       const url = URL.createObjectURL(blob);
@@ -83,6 +89,8 @@ export default function InterviewPage() {
       // Update state and localStorage
       setConversation(newConversation);
       localStorage.setItem('interviewConversation', JSON.stringify(newConversation));
+
+      console.log("speaking question", data.content);
 
       // Speak the new question
       speakQuestion(data.content);
