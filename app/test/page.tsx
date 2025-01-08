@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 
 interface Transcription {
   text: string;
@@ -101,7 +101,7 @@ export default function TestPage() {
     }
   };
 
-  const stopRecording = () => {
+  const stopRecording = useCallback(() => {
     console.log('Stopping recording...');
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
@@ -126,7 +126,7 @@ export default function TestPage() {
       setIsRecording(false);
       console.log('Recording stopped');
     }
-  };
+  }, [isRecording]);
 
   const sendAudioForTranscription = async (audioBlob: Blob) => {
     const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
