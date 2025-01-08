@@ -60,4 +60,3 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 4. Intervene (without waiting for the candidate to finish) if the candidate is going off track or repeating details: The AI will politely steer the conversation back to the topic with phrases like:
     - "Let’s focus on [specific topic]. Could you elaborate more on that?"
     - "You already mentioned [repeated detail]. Let’s move on to another aspect of this."
-      
