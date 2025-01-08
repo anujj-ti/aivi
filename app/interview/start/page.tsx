@@ -12,6 +12,7 @@ export default function InterviewPage() {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const [conversation, setConversation] = useState<Message[]>([]);
   const [showEndModal, setShowEndModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const {
     isRecording,
@@ -37,6 +38,7 @@ export default function InterviewPage() {
   }, [isRecording, currentText]);
 
   const saveResponse = async (text: string) => {
+    setIsLoading(true);
     // Get the resume from localStorage
     const resume = localStorage.getItem('userResume') || '';
     const currentConversation = JSON.parse(localStorage.getItem('interviewConversation') || '[]');
@@ -73,6 +75,8 @@ export default function InterviewPage() {
       }
     } catch (error) {
       console.error('Failed to get next question:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -164,14 +168,17 @@ export default function InterviewPage() {
           <div className="flex items-center justify-center gap-4">
             <button
               onClick={isRecording ? stopRecording : startRecording}
+              disabled={isLoading}
               className={`px-6 py-3 rounded-full text-white font-semibold transition-all flex items-center gap-2 ${
                 isRecording 
                   ? 'bg-red-500 hover:bg-red-600 animate-pulse'
-                  : 'bg-blue-500 hover:bg-blue-600'
+                  : isLoading
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-blue-500 hover:bg-blue-600'
               }`}
             >
               {isRecording ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-              {isRecording ? 'Stop Recording' : 'Start Recording'}
+              {isRecording ? 'Stop Recording' : isLoading ? 'Processing...' : 'Start Recording'}
             </button>
           </div>
           {isRecording && (
