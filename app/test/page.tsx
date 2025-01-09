@@ -9,12 +9,41 @@ export default function TestPage() {
     error,
     currentText,
     transcriptions,
+    isSpeaking,
+    audioLevel,
     startRecording,
     stopRecording
   } = useAudioRecorder();
 
   return (
     <main className="min-h-screen p-8 bg-gray-900">
+      {/* Recording/Speaking Indicator */}
+      {isRecording && (
+        <div className={`fixed top-0 left-0 right-0 text-white text-center py-2 transition-colors duration-300 ${
+          isSpeaking ? 'bg-green-500' : 'bg-yellow-500'
+        }`}>
+          <div className="flex items-center justify-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${
+              isSpeaking ? 'bg-white animate-ping' : 'bg-white'
+            }`}/>
+            <span>
+              {isSpeaking ? 'Speaking' : 'Waiting for speech'} 
+              {audioLevel > 0 && ` (Level: ${audioLevel.toFixed(1)})`}
+            </span>
+          </div>
+          {/* Audio level bar */}
+          <div className="w-full h-1 bg-black/20 mt-1">
+            <div 
+              className="h-full bg-white transition-all duration-100"
+              style={{ 
+                width: `${Math.min((audioLevel / 50) * 100, 100)}%`,
+                opacity: isSpeaking ? 1 : 0.5
+              }}
+            />
+          </div>
+        </div>
+      )}
+      
       <div className="max-w-3xl mx-auto">
         <div className="bg-gray-800 rounded-lg shadow-lg p-6">
           <h1 className="text-3xl font-bold mb-6 text-white">Real-time Speech to Text</h1>
