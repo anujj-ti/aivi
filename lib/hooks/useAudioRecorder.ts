@@ -5,7 +5,7 @@ import { getMicrophoneStream, createMediaRecorder, stopMediaStream, sendAudioFor
 export const useAudioRecorder = () => {
   // Constants for audio analysis
   const START_SPEAKING_THRESHOLD = 15;
-  const STOP_SPEAKING_THRESHOLD = 12;
+  const STOP_SPEAKING_THRESHOLD = 9;
   const MAX_SILENCE_FRAMES = 10;
 
   const [state, setState] = useState<AudioRecorderState>({
@@ -19,6 +19,7 @@ export const useAudioRecorder = () => {
   const [audioLevel, setAudioLevel] = useState(0);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const activeRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -26,6 +27,7 @@ export const useAudioRecorder = () => {
   const silenceCountRef = useRef<number>(0);
   const isRecordingRef = useRef<boolean>(false);
   const isSpeakingRef = useRef<boolean>(false);
+  const streamRef = useRef<MediaStream | null>(null);
 
   // Update ref when state changes
   useEffect(() => {
@@ -41,6 +43,91 @@ export const useAudioRecorder = () => {
     frameCountRef.current = 0;
     silenceCountRef.current = MAX_SILENCE_FRAMES;
     isRecordingRef.current = false;
+  }, []);
+
+  const startSegmentRecording = useCallback(() => {
+    if (!streamRef.current || !isRecordingRef.current) return;
+    
+    const recorder = createMediaRecorder(streamRef.current);
+    recorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        chunksRef.current.push(event.data);
+        console.log(`Recorded chunk: ${event.data.size} bytes`);
+      }
+    };
+    
+    activeRecorderRef.current = recorder;
+    recorder.start(1000);
+    console.log('Started segment recording');
+  }, []);
+
+  const stopSegmentRecording = useCallback(async () => {
+    if (!activeRecorderRef.current) return;
+    
+    const currentRecorder = activeRecorderRef.current;
+    activeRecorderRef.current = null;
+
+    return new Promise<void>((resolve) => {
+      currentRecorder.onstop = async () => {
+        try {
+          if (chunksRef.current.length > 0) {
+            // Validate chunks before creating blob
+            const validChunks = chunksRef.current.filter(chunk => 
+              chunk instanceof Blob && chunk.size > 0 && chunk.type.includes('webm')
+            );
+
+            if (validChunks.length === 0) {
+              console.log('No valid audio chunks found, skipping transcription');
+              chunksRef.current = [];
+              resolve();
+              return;
+            }
+
+            // Calculate total audio size
+            const totalSize = validChunks.reduce((sum, chunk) => sum + chunk.size, 0);
+            
+            // Minimum size threshold (approximately 0.2 seconds of audio)
+            // WebM opus typically uses ~32kbps, so 0.2s ≈ 800 bytes
+            const MIN_AUDIO_SIZE = 800;
+
+            if (totalSize < MIN_AUDIO_SIZE) {
+              console.log(`Audio too short (${totalSize} bytes), skipping transcription`);
+              chunksRef.current = [];
+              resolve();
+              return;
+            }
+
+            // Create blob with explicit MIME type
+            const audioBlob = new Blob(validChunks, { 
+              type: 'audio/webm;codecs=opus'
+            });
+            
+            // Verify the blob
+            if (!audioBlob || audioBlob.size === 0) {
+              console.log('Created blob is invalid, skipping transcription');
+              chunksRef.current = [];
+              resolve();
+              return;
+            }
+
+            // Process audio if it meets all criteria
+            await processTranscription(audioBlob);
+          }
+        } catch (error) {
+          console.error('Error processing audio segment:', error);
+        } finally {
+          chunksRef.current = [];
+          resolve();
+        }
+      };
+
+      try {
+        currentRecorder.stop();
+      } catch (error) {
+        console.error('Error stopping recorder:', error);
+        resolve();
+      }
+    });
   }, []);
 
   const detectSpeaking = useCallback((dataArray: Uint8Array) => {
@@ -68,6 +155,10 @@ export const useAudioRecorder = () => {
         setIsSpeaking(true);
         isSpeakingRef.current = true;
         silenceCountRef.current = 0;
+        // Start new recording segment when speech begins
+        if (isRecordingRef.current && !activeRecorderRef.current) {
+          startSegmentRecording();
+        }
       } 
       else if (isSpeakingRef.current && !shouldContinueSpeaking) {
         // Increment silence counter when volume drops
@@ -81,6 +172,10 @@ export const useAudioRecorder = () => {
           );
           setIsSpeaking(false);
           isSpeakingRef.current = false;
+          // Stop and process current recording segment
+          if (activeRecorderRef.current) {
+            stopSegmentRecording();
+          }
         } else {
           // Log potential silence
           console.log(
@@ -94,7 +189,7 @@ export const useAudioRecorder = () => {
         // Reset silence counter when speaking continues
         silenceCountRef.current = 0;
       }
-      
+
       setAudioLevel(rms);
       
       // Log more frequently during initial setup (first 100 frames)
@@ -116,7 +211,7 @@ export const useAudioRecorder = () => {
     } catch (error) {
       console.error('Error in detectSpeaking:', error);
     }
-  }, []); // Remove isSpeaking from dependencies
+  }, [startSegmentRecording, stopSegmentRecording]);
 
   const startRecording = async () => {
     try {
@@ -127,6 +222,7 @@ export const useAudioRecorder = () => {
 
       console.log('Starting recording and audio analysis');
       const stream = await getMicrophoneStream();
+      streamRef.current = stream;
       console.log('Got microphone stream successfully');
       
       const mediaRecorder = createMediaRecorder(stream);
@@ -150,10 +246,13 @@ export const useAudioRecorder = () => {
 
       // Reset counters and state
       frameCountRef.current = 0;
-      silenceCountRef.current = MAX_SILENCE_FRAMES; // Start with max silence
+      silenceCountRef.current = MAX_SILENCE_FRAMES;
       setAudioLevel(0);
       setIsSpeaking(false);
       isRecordingRef.current = true;
+      
+      mediaRecorderRef.current = mediaRecorder;
+      chunksRef.current = [];
 
       // Start audio analysis loop
       const analyzeAudio = () => {
@@ -177,19 +276,7 @@ export const useAudioRecorder = () => {
           console.error('Error in audio analysis:', error);
         }
       };
-      
-      mediaRecorderRef.current = mediaRecorder;
-      chunksRef.current = [];
 
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunksRef.current.push(event.data);
-          console.log(`Recorded chunk: ${event.data.size} bytes`);
-        }
-      };
-
-      // Start recording first
-      mediaRecorder.start(1000);
       setState(prev => ({ ...prev, isRecording: true, error: null }));
       
       // Then start analysis loop
@@ -207,10 +294,15 @@ export const useAudioRecorder = () => {
     }
   };
 
-  const stopRecording = useCallback(() => {
+  const stopRecording = useCallback(async () => {
     if (mediaRecorderRef.current && state.isRecording) {
       isRecordingRef.current = false;
-      mediaRecorderRef.current.stop();
+      
+      // Stop current segment if any
+      if (activeRecorderRef.current) {
+        await stopSegmentRecording();
+      }
+      
       stopMediaStream(mediaRecorderRef.current.stream);
       
       // Clean up audio analysis
@@ -223,15 +315,9 @@ export const useAudioRecorder = () => {
       setIsSpeaking(false);
       setAudioLevel(0);
       
-      if (chunksRef.current.length > 0) {
-        const audioBlob = new Blob(chunksRef.current, { type: 'audio/mp4' });
-        processTranscription(audioBlob);
-        chunksRef.current = [];
-      }
-      
       setState(prev => ({ ...prev, isRecording: false }));
     }
-  }, [state.isRecording]);
+  }, [state.isRecording, stopSegmentRecording]);
 
   const processTranscription = async (audioBlob: Blob) => {
     try {
