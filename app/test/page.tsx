@@ -38,7 +38,7 @@ export default function TestPage() {
             <div 
               className="h-full bg-white transition-all duration-100"
               style={{ 
-                width: `${Math.min((audioLevel / 50) * 100, 100)}%`,
+                width: `${Math.min((audioLevel / 30) * 100, 100)}%`,
                 opacity: isSpeaking ? 1 : 0.5
               }}
             />
