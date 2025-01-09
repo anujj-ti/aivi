@@ -17,7 +17,6 @@ export const useAudioRecorder = () => {
   const chunksRef = useRef<Blob[]>([]);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
-  const speakingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const frameCountRef = useRef<number>(0);
   const silenceCountRef = useRef<number>(0);
   const isRecordingRef = useRef<boolean>(false);
@@ -26,6 +25,7 @@ export const useAudioRecorder = () => {
     setCurrentText('');
     setTranscriptions([]);
     setIsSpeaking(false);
+    setAudioLevel(0);
     frameCountRef.current = 0;
     silenceCountRef.current = 0;
     isRecordingRef.current = false;
@@ -77,21 +77,6 @@ export const useAudioRecorder = () => {
       console.error('Error in detectSpeaking:', error);
     }
   }, [isSpeaking]);
-
-  const checkMicrophonePermission = async () => {
-    try {
-      const stream = await getMicrophoneStream();
-      stopMediaStream(stream);
-      setState(prev => ({ ...prev, hasMicPermission: true, error: null }));
-    } catch (err) {
-      console.error('Microphone permission error:', err);
-      setState(prev => ({
-        ...prev,
-        hasMicPermission: false,
-        error: 'Please grant microphone permission to use this feature.'
-      }));
-    }
-  };
 
   const startRecording = async () => {
     try {
@@ -195,14 +180,11 @@ export const useAudioRecorder = () => {
         analyserRef.current = null;
       }
       
-      if (speakingTimeoutRef.current) {
-        clearTimeout(speakingTimeoutRef.current);
-      }
-      
       setIsSpeaking(false);
+      setAudioLevel(0);
       
       if (chunksRef.current.length > 0) {
-        const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        const audioBlob = new Blob(chunksRef.current, { type: 'audio/mp4' });
         processTranscription(audioBlob);
         chunksRef.current = [];
       }
@@ -228,6 +210,21 @@ export const useAudioRecorder = () => {
       setState(prev => ({
         ...prev,
         error: 'Error transcribing audio. Please try again.'
+      }));
+    }
+  };
+
+  const checkMicrophonePermission = async () => {
+    try {
+      const stream = await getMicrophoneStream();
+      stopMediaStream(stream);
+      setState(prev => ({ ...prev, hasMicPermission: true, error: null }));
+    } catch (err) {
+      console.error('Microphone permission error:', err);
+      setState(prev => ({
+        ...prev,
+        hasMicPermission: false,
+        error: 'Please grant microphone permission to use this feature.'
       }));
     }
   };
