@@ -3,6 +3,11 @@ import { Transcription, AudioRecorderState } from '../types/audio';
 import { getMicrophoneStream, createMediaRecorder, stopMediaStream, sendAudioForTranscription } from '../utils/audioUtils';
 
 export const useAudioRecorder = () => {
+  // Constants for audio analysis
+  const START_SPEAKING_THRESHOLD = 15;
+  const STOP_SPEAKING_THRESHOLD = 12;
+  const MAX_SILENCE_FRAMES = 10;
+
   const [state, setState] = useState<AudioRecorderState>({
     isRecording: false,
     error: null,
@@ -20,14 +25,21 @@ export const useAudioRecorder = () => {
   const frameCountRef = useRef<number>(0);
   const silenceCountRef = useRef<number>(0);
   const isRecordingRef = useRef<boolean>(false);
+  const isSpeakingRef = useRef<boolean>(false);
+
+  // Update ref when state changes
+  useEffect(() => {
+    isSpeakingRef.current = isSpeaking;
+  }, [isSpeaking]);
 
   const reset = useCallback(() => {
     setCurrentText('');
     setTranscriptions([]);
     setIsSpeaking(false);
+    isSpeakingRef.current = false;
     setAudioLevel(0);
     frameCountRef.current = 0;
-    silenceCountRef.current = 0;
+    silenceCountRef.current = MAX_SILENCE_FRAMES;
     isRecordingRef.current = false;
   }, []);
 
@@ -38,11 +50,51 @@ export const useAudioRecorder = () => {
         dataArray.reduce((acc, val) => acc + (val * val), 0) / dataArray.length
       );
       
-      // Lower threshold and adjust silence detection
-      const SPEAKING_THRESHOLD = 5;
-      const MAX_SILENCE_FRAMES = 3;
+      // Update silence counter based on current level
+      if (rms <= STOP_SPEAKING_THRESHOLD) {
+        silenceCountRef.current = Math.min(silenceCountRef.current + 1, MAX_SILENCE_FRAMES);
+      } else {
+        silenceCountRef.current = Math.max(silenceCountRef.current - 2, 0); // Faster decrease when sound detected
+      }
+
+      // Determine speaking state with hysteresis
+      const shouldBeginSpeaking = rms > START_SPEAKING_THRESHOLD;
+      const shouldContinueSpeaking = rms > STOP_SPEAKING_THRESHOLD;
       
-      const isSpeakingNow = rms > SPEAKING_THRESHOLD;
+      // Update speaking state using ref for current state
+      if (!isSpeakingRef.current && shouldBeginSpeaking) {
+        // Start speaking when volume is high enough
+        console.log(`Speech detected - Starting speaking state (Level: ${rms.toFixed(2)}, Max: ${Math.max(...dataArray)})`);
+        setIsSpeaking(true);
+        isSpeakingRef.current = true;
+        silenceCountRef.current = 0;
+      } 
+      else if (isSpeakingRef.current && !shouldContinueSpeaking) {
+        // Increment silence counter when volume drops
+        if (silenceCountRef.current >= MAX_SILENCE_FRAMES) {
+          // Stop speaking after enough silence frames
+          console.log(
+            `Silence detected - Ending speaking state ` +
+            `(Level: ${rms.toFixed(2)}, ` +
+            `Max: ${Math.max(...dataArray)}, ` +
+            `Silence Frames: ${silenceCountRef.current}/${MAX_SILENCE_FRAMES})`
+          );
+          setIsSpeaking(false);
+          isSpeakingRef.current = false;
+        } else {
+          // Log potential silence
+          console.log(
+            `Potential silence while speaking - ` +
+            `Frame ${silenceCountRef.current}/${MAX_SILENCE_FRAMES} ` +
+            `(Level: ${rms.toFixed(2)})`
+          );
+        }
+      }
+      else if (isSpeakingRef.current && shouldContinueSpeaking) {
+        // Reset silence counter when speaking continues
+        silenceCountRef.current = 0;
+      }
+      
       setAudioLevel(rms);
       
       // Log more frequently during initial setup (first 100 frames)
@@ -50,33 +102,21 @@ export const useAudioRecorder = () => {
         console.log(
           `Audio Analysis [Frame ${frameCountRef.current}] - ` +
           `RMS: ${rms.toFixed(2)}, ` +
-          `Threshold: ${SPEAKING_THRESHOLD}, ` +
-          `Speaking: ${isSpeakingNow}, ` +
-          `Silence Frames: ${silenceCountRef.current}, ` +
-          `Max Value: ${Math.max(...dataArray)}, ` +
-          `Is Recording: ${isRecordingRef.current}`
+          `Start Threshold: ${START_SPEAKING_THRESHOLD}, ` +
+          `Stop Threshold: ${STOP_SPEAKING_THRESHOLD}, ` +
+          `Should Begin: ${shouldBeginSpeaking}, ` +
+          `Should Continue: ${shouldContinueSpeaking}, ` +
+          `Current State: ${isSpeakingRef.current}, ` +
+          `Silence Frames: ${silenceCountRef.current}/${MAX_SILENCE_FRAMES}, ` +
+          `Max Value: ${Math.max(...dataArray)}`
         );
       }
       frameCountRef.current++;
 
-      if (isSpeakingNow) {
-        silenceCountRef.current = 0;
-        if (!isSpeaking) {
-          console.log(`Speech detected - Starting speaking state (Level: ${rms.toFixed(2)}, Max: ${Math.max(...dataArray)})`);
-          setIsSpeaking(true);
-        }
-      } else {
-        silenceCountRef.current++;
-        if (silenceCountRef.current >= MAX_SILENCE_FRAMES && isSpeaking) {
-          console.log(`Silence detected - Ending speaking state (Level: ${rms.toFixed(2)}, Max: ${Math.max(...dataArray)})`);
-          setIsSpeaking(false);
-          silenceCountRef.current = 0;
-        }
-      }
     } catch (error) {
       console.error('Error in detectSpeaking:', error);
     }
-  }, [isSpeaking]);
+  }, []); // Remove isSpeaking from dependencies
 
   const startRecording = async () => {
     try {
@@ -110,7 +150,7 @@ export const useAudioRecorder = () => {
 
       // Reset counters and state
       frameCountRef.current = 0;
-      silenceCountRef.current = 0;
+      silenceCountRef.current = MAX_SILENCE_FRAMES; // Start with max silence
       setAudioLevel(0);
       setIsSpeaking(false);
       isRecordingRef.current = true;
@@ -236,7 +276,7 @@ export const useAudioRecorder = () => {
         stopRecording();
       }
     };
-  }, []);
+  }, [state.isRecording, stopRecording]);
 
   return {
     isRecording: state.isRecording,

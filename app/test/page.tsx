@@ -15,6 +15,8 @@ export default function TestPage() {
     stopRecording
   } = useAudioRecorder();
 
+  console.log("isSpeaking", isSpeaking);
+
   return (
     <main className="min-h-screen p-8 bg-gray-900">
       {/* Recording/Speaking Indicator */}
