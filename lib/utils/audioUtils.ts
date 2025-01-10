@@ -27,10 +27,17 @@ export const sendAudioForTranscription = async (audioBlob: Blob): Promise<{ text
     body: formData
   });
 
+  const responseData = await response.text();
+  
   if (!response.ok) {
-    const error = await response.text();
-    console.log("Transcription Failed", error);
+    console.log("Transcription Failed", responseData);
+    // throw new Error(`Transcription failed: ${responseData}`);
   }
 
-  return response.json();
+  try {
+    return JSON.parse(responseData);
+  } catch (error) {
+    console.error("Failed to parse response as JSON:", error);
+    throw new Error("Invalid response format from transcription service");
+  }
 }; 

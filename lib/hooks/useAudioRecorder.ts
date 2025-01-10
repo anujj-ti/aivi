@@ -333,10 +333,10 @@ export const useAudioRecorder = () => {
       }
     } catch (error) {
       console.error('Transcription error:', error);
-      setState(prev => ({
-        ...prev,
-        error: 'Error transcribing audio. Please try again.'
-      }));
+      // setState(prev => ({
+      //   ...prev,
+      //   error: 'Error transcribing audio. Please try again.'
+      // }));
     }
   };
 

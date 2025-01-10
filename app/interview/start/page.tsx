@@ -15,6 +15,7 @@ export default function InterviewPage() {
   const [showConfirmEndModal, setShowConfirmEndModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const [currentResponse, setCurrentResponse] = useState('');
 
   const {
     isRecording,
@@ -22,7 +23,9 @@ export default function InterviewPage() {
     currentText,
     startRecording,
     stopRecording,
-    reset: resetRecorder
+    reset: resetRecorder,
+    isSpeaking,
+    audioLevel
   } = useAudioRecorder();
 
   const speakQuestion = useCallback(async (text: string) => {
@@ -45,20 +48,6 @@ export default function InterviewPage() {
       console.error('Failed to speak question:', error);
     }
   }, []);
-
-  useEffect(() => {
-    // Load conversation from localStorage
-    const savedConversation = localStorage.getItem('interviewConversation');
-    if (savedConversation) {
-      const parsedConversation = JSON.parse(savedConversation);
-      setConversation(parsedConversation);
-      // Speak the last question if it exists
-      const lastMessage = parsedConversation[parsedConversation.length - 1];
-      if (lastMessage && lastMessage.role === 'assistant') {
-        speakQuestion(lastMessage.content);
-      }
-    }
-  }, [speakQuestion]);
 
   const saveResponse = useCallback(async (text: string) => {
     if (!text.trim()) return; // Don't save empty responses
@@ -111,11 +100,50 @@ export default function InterviewPage() {
     }
   }, [setConversation, setIsLoading, setShowEndModal, speakQuestion, resetRecorder]);
 
+  // Add effect to handle currentText updates
   useEffect(() => {
-    if (!isRecording && currentText) {
-      saveResponse(currentText);
+    if (currentText && isRecording) {
+      setCurrentResponse(prev => {
+        // Always append new text with a space, even during the same recording session
+        const newText = currentText.trim();
+        if (newText && !prev.includes(newText)) {
+          return (prev + ' ' + newText).trim();
+        }
+        return prev;
+      });
     }
-  }, [isRecording, currentText, saveResponse]);
+  }, [currentText, isRecording]);
+
+  // Only reset currentResponse when we actually save the response
+  useEffect(() => {
+    if (!isRecording && currentResponse) {
+      // Only save and reset if we have stopped recording
+      saveResponse(currentResponse);
+      setCurrentResponse('');
+    }
+  }, [isRecording, currentResponse, saveResponse]);
+
+  // Add effect to stop AI voice when user speaks
+  useEffect(() => {
+    if (isSpeaking && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+  }, [isSpeaking]);
+
+  useEffect(() => {
+    // Load conversation from localStorage
+    const savedConversation = localStorage.getItem('interviewConversation');
+    if (savedConversation) {
+      const parsedConversation = JSON.parse(savedConversation);
+      setConversation(parsedConversation);
+      // Speak the last question if it exists
+      const lastMessage = parsedConversation[parsedConversation.length - 1];
+      if (lastMessage && lastMessage.role === 'assistant') {
+        speakQuestion(lastMessage.content);
+      }
+    }
+  }, [speakQuestion]);
 
   useEffect(() => {
     // Scroll to bottom whenever conversation updates
@@ -132,6 +160,40 @@ export default function InterviewPage() {
       {/* Video Section */}
       <div className="w-1/2 p-6">
         <div className="bg-white rounded-lg shadow-lg p-6 h-full flex flex-col">
+          {/* Recording/Speaking Indicator */}
+          {isRecording && (
+            <div className={`text-center py-2 mb-4 rounded-lg transition-colors duration-300 ${
+              isSpeaking ? 'bg-green-100' : 'bg-yellow-100'
+            }`}>
+              <div className="flex items-center justify-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${
+                  isSpeaking ? 'bg-green-500 animate-ping' : 'bg-yellow-500'
+                }`}/>
+                <span className={isSpeaking ? 'text-green-700' : 'text-yellow-700'}>
+                  {isSpeaking ? 'Speaking' : 'Waiting for speech'} 
+                  {audioLevel > 0 && ` (Level: ${audioLevel.toFixed(1)})`}
+                </span>
+              </div>
+              {/* Audio level bar */}
+              <div className="w-full h-1 bg-black/10 mt-1">
+                <div 
+                  className="h-full transition-all duration-100"
+                  style={{ 
+                    width: `${Math.min((audioLevel / 30) * 100, 100)}%`,
+                    backgroundColor: isSpeaking ? '#22c55e' : '#eab308',
+                    opacity: isSpeaking ? 1 : 0.5
+                  }}
+                />
+              </div>
+              {/* Current transcription preview */}
+              {currentResponse && (
+                <div className="mt-2 text-sm text-gray-600 bg-white/50 p-2 rounded">
+                  {currentResponse}
+                </div>
+              )}
+            </div>
+          )}
+          
           {/* Video Display */}
           <div className="relative flex-1 bg-gray-900 rounded-lg mb-6 overflow-hidden h-[600px] flex items-center justify-center">
             <div className="text-white text-center p-6">
@@ -187,13 +249,24 @@ export default function InterviewPage() {
               </div>
             ))}
             
-            {/* Show current transcription */}
-            {isRecording && currentText && (
-              <div className="bg-gray-100 rounded-lg p-3 max-w-[80%] self-end mb-4">
-                <p className="text-sm text-gray-600">{currentText}</p>
+            {/* Show current response as pending message */}
+            {currentResponse && (
+              <div className="mb-4">
+                <div className="flex flex-col gap-2">
+                  <div className="bg-gray-100 rounded-lg p-3 max-w-[80%] self-end border border-gray-200">
+                    <p className="text-sm font-medium text-gray-600">Currently speaking:</p>
+                    <p className="text-sm text-gray-700">{currentResponse}</p>
+                    {isRecording && (
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-pulse"/>
+                        <span className="text-xs text-gray-500">Recording in progress...</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
-
+            
             {/* Show mic error if any */}
             {micError && (
               <div className="bg-red-100 rounded-lg p-3 max-w-[80%] self-center mb-4">
