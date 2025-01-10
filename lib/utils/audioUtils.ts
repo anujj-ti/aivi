@@ -29,7 +29,7 @@ export const sendAudioForTranscription = async (audioBlob: Blob): Promise<{ text
 
   if (!response.ok) {
     const error = await response.text();
-    throw new Error(`Transcription failed: ${error}`);
+    console.log("Transcription Failed", error);
   }
 
   return response.json();
