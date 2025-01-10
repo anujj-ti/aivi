@@ -17,6 +17,7 @@ export default function InterviewPage() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [currentResponse, setCurrentResponse] = useState('');
   const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hasSpokenInitialQuestionRef = useRef(false);
 
   const {
     isRecording,
@@ -183,16 +184,29 @@ export default function InterviewPage() {
 
   useEffect(() => {
     // Load conversation from localStorage
+    const mounted = { current: true };
+    const audio = audioRef.current;
     const savedConversation = localStorage.getItem('interviewConversation');
-    if (savedConversation) {
+    if (savedConversation && mounted.current && !hasSpokenInitialQuestionRef.current) {
       const parsedConversation = JSON.parse(savedConversation);
       setConversation(parsedConversation);
       // Speak the last question if it exists
       const lastMessage = parsedConversation[parsedConversation.length - 1];
       if (lastMessage && lastMessage.role === 'assistant') {
+        hasSpokenInitialQuestionRef.current = true;
         speakQuestion(lastMessage.content);
       }
     }
+
+    return () => {
+      mounted.current = false;
+      // Clean up audio on unmount
+      if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+        URL.revokeObjectURL(audio.src);
+      }
+    };
   }, [speakQuestion]);
 
   useEffect(() => {
