@@ -1,27 +1,8 @@
 import { NextResponse } from 'next/server';
 
-// Function to get audio duration
-async function getAudioDuration(blob: Blob): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const audioContext = new AudioContext();
-    const reader = new FileReader();
-
-    reader.onload = async () => {
-      try {
-        const arrayBuffer = reader.result as ArrayBuffer;
-        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-        resolve(audioBuffer.duration);
-      } catch (error) {
-        reject(error);
-      } finally {
-        audioContext.close();
-      }
-    };
-
-    reader.onerror = () => reject(reader.error);
-    reader.readAsArrayBuffer(blob);
-  });
-}
+// Minimum size threshold (approximately 0.1 seconds of audio)
+// WebM opus typically uses ~32kbps, so 0.1s ≈ 400 bytes
+const MIN_AUDIO_SIZE = 400;
 
 export async function POST(request: Request) {
   try {
@@ -35,20 +16,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check audio duration
-    try {
-      const duration = await getAudioDuration(audioBlob);
-      console.log(`Audio duration: ${duration} seconds`);
-      
-      if (duration < 0.1) {
-        return NextResponse.json(
-          { error: 'Audio file is too short. Minimum audio length is 0.1 seconds.' },
-          { status: 400 }
-        );
-      }
-    } catch (error) {
-      console.error('Error checking audio duration:', error);
-      // Continue with the request even if duration check fails
+    // Check audio size
+    if (audioBlob.size < MIN_AUDIO_SIZE) {
+      return NextResponse.json(
+        { error: 'Audio file is too short. Minimum audio length is 0.1 seconds.' },
+        { status: 400 }
+      );
     }
 
     const apiKey = process.env.OPENAI_API_KEY;
