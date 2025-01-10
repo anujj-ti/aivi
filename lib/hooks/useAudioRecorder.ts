@@ -4,8 +4,8 @@ import { getMicrophoneStream, createMediaRecorder, stopMediaStream, sendAudioFor
 
 export const useAudioRecorder = () => {
   // Constants for audio analysis
-  const START_SPEAKING_THRESHOLD = 15;
-  const STOP_SPEAKING_THRESHOLD = 9;
+  const START_SPEAKING_THRESHOLD = 20;
+  const STOP_SPEAKING_THRESHOLD = 11;
   const MAX_SILENCE_FRAMES = 10;
 
   const [state, setState] = useState<AudioRecorderState>({

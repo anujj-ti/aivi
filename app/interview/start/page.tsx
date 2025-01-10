@@ -16,6 +16,7 @@ export default function InterviewPage() {
   const [isLoading, setIsLoading] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [currentResponse, setCurrentResponse] = useState('');
+  const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const {
     isRecording,
@@ -100,9 +101,23 @@ export default function InterviewPage() {
     }
   }, [setConversation, setIsLoading, setShowEndModal, speakQuestion, resetRecorder]);
 
+  // Function to handle sending the response
+  const handleSendResponse = useCallback(() => {
+    if (currentResponse.trim()) {
+      saveResponse(currentResponse);
+      setCurrentResponse('');
+    }
+  }, [currentResponse, saveResponse]);
+
   // Add effect to handle currentText updates
   useEffect(() => {
     if (currentText && isRecording) {
+      // Clear any existing silence timeout when new text comes in
+      if (silenceTimeoutRef.current) {
+        clearTimeout(silenceTimeoutRef.current);
+        silenceTimeoutRef.current = null;
+      }
+
       setCurrentResponse(prev => {
         // Always append new text with a space, even during the same recording session
         const newText = currentText.trim();
@@ -114,14 +129,49 @@ export default function InterviewPage() {
     }
   }, [currentText, isRecording]);
 
-  // Only reset currentResponse when we actually save the response
+  // Effect to handle silence detection
+  useEffect(() => {
+    if (isRecording && currentResponse && !isSpeaking) {
+      // Start silence timer when user stops speaking
+      if (!silenceTimeoutRef.current) {
+        silenceTimeoutRef.current = setTimeout(async () => {
+          // Wait a bit longer to ensure last audio chunk is processed
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          // Get the latest response text before sending
+          handleSendResponse();
+          stopRecording();
+        }, 3000); // 3 seconds of silence
+      }
+    } else if (isSpeaking) {
+      // Clear timeout if user starts speaking again
+      if (silenceTimeoutRef.current) {
+        clearTimeout(silenceTimeoutRef.current);
+        silenceTimeoutRef.current = null;
+      }
+    }
+    // Don't clear timeout just because recording stopped - let the timeout complete
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (silenceTimeoutRef.current) {
+        clearTimeout(silenceTimeoutRef.current);
+        silenceTimeoutRef.current = null;
+      }
+    };
+  }, [isRecording, isSpeaking, currentResponse, handleSendResponse, stopRecording]);
+
+  // Add effect to handle final cleanup when recording stops
   useEffect(() => {
     if (!isRecording && currentResponse) {
-      // Only save and reset if we have stopped recording
-      saveResponse(currentResponse);
-      setCurrentResponse('');
+      // Small delay to ensure any final transcriptions are processed
+      const finalCleanupTimeout = setTimeout(() => {
+        handleSendResponse();
+      }, 500);
+
+      return () => clearTimeout(finalCleanupTimeout);
     }
-  }, [isRecording, currentResponse, saveResponse]);
+  }, [isRecording, currentResponse, handleSendResponse]);
 
   // Add effect to stop AI voice when user speaks
   useEffect(() => {
